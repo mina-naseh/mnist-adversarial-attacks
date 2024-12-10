@@ -4,8 +4,9 @@ from training_loops import train_model
 from data_preparation import prepare_data, prepare_tensors
 import torch
 from torch.utils.data import TensorDataset, DataLoader
-from evaluation import evaluate_model, plot_confusion_matrix, evaluate_robust_accuracy
-from pgd_attack import pgd_attack
+from evaluation import evaluate_model, evaluate_robust_accuracy
+from pgd_attack import pgd_attack, evaluate_impact_of_epsilon
+from plots import plot_adversarial_examples
 
 def main():
     # Create output directory if it doesn't exist
@@ -50,48 +51,36 @@ def main():
     test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
     test_loader = DataLoader(test_dataset, batch_size=2000, shuffle=False)
 
-    accuracy, conf_matrix = evaluate_model(model_0, test_loader, device)
+    accuracy, _ = evaluate_model(model_0, test_loader, device)
     print(f"Clean accuracy of the model is {accuracy:.2f}%")
 
-    # Plot confusion matrix
-    class_names = [str(i) for i in range(10)]  # MNIST classes (0-9)
-    plot_confusion_matrix(conf_matrix, class_names)
-
-
     # PGD Attack Parameters
-    eps = 32 / 255
-    alpha = eps / 10
-    n_iter = 50
-    n_examples = 1000
+    attack_params = {
+        "eps": 32 / 255,
+        "alpha": (32 / 255) / 10,
+        "n_iter": 50,
+        "random_start": True
+    }
 
-    # Select a subset of the test set
-    test_subset = TensorDataset(x_test_tensor[:n_examples], y_test_tensor[:n_examples])
-    test_loader = DataLoader(test_subset, batch_size=64, shuffle=False)
-
-    print("Generating adversarial examples using PGD...")
-
-    # Evaluate model performance on adversarial examples
-    model_0.eval()
-    correct = 0
-    total = 0
-
-    for images, labels in test_loader:
-        images, labels = images.to(device), labels.to(device)
-
-        # Generate adversarial examples
-        adv_images = pgd_attack(model_0, images, labels, eps=eps, alpha=alpha, n_iter=n_iter)
-
-        # Evaluate the model on adversarial examples
-        outputs = model_0(adv_images)
-        pred_classes = outputs.argmax(dim=1)
-
-        # Count correct predictions
-        correct += (pred_classes == labels).sum().item()
-        total += labels.size(0)
-
-    # Calculate robust accuracy
-    robust_accuracy = (correct / total) * 100
+    print("Evaluating robust accuracy under PGD attack...")
+    test_subset = TensorDataset(x_test_tensor[:1000], y_test_tensor[:1000])
+    test_loader_subset = DataLoader(test_subset, batch_size=batch_size, shuffle=False)
+    robust_accuracy, conf_matrix = evaluate_robust_accuracy(
+        model_0, test_loader_subset, pgd_attack, attack_params, device
+    )
     print(f"Robust accuracy under PGD attack: {robust_accuracy:.2f}%")
+
+    # Evaluate and plot adversarial examples
+    visual_loader = DataLoader(test_subset, batch_size=10, shuffle=False)
+    images, labels = next(iter(visual_loader))
+    adv_images = pgd_attack(model_0, images.to(device), labels.to(device), **attack_params)
+
+    class_names = [str(i) for i in range(10)]  # MNIST classes (0-9)
+    plot_adversarial_examples(model_0, visual_loader, adv_images, class_names, device)
+
+    # Evaluate impact of epsilon
+    print("\nEvaluating the impact of epsilon on robust accuracy...")
+    evaluate_impact_of_epsilon(model_0, test_loader_subset, device)
 
 
 if __name__ == "__main__":
