@@ -1,7 +1,8 @@
 import torch
+import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from torch import nn, Tensor
-from evaluation import evaluate_robust_accuracy
+from src.evaluation import evaluate_robust_accuracy
 
 def pgd_attack(
     model: nn.Module, 
@@ -73,8 +74,6 @@ def pgd_attack(
     return adv_images
 
 
-import matplotlib.pyplot as plt
-
 def evaluate_impact_of_epsilon(model, dataloader, device):
     """
     Evaluate the impact of maximum perturbation (epsilon) on robust accuracy.
@@ -85,7 +84,8 @@ def evaluate_impact_of_epsilon(model, dataloader, device):
     - device (torch.device): Device to perform computations on.
 
     Returns:
-    - None: Saves the plot to an output directory.
+    - list: Epsilon values.
+    - list: Robust accuracies corresponding to the epsilon values.
     """
     eps_values = [8 / 255, 16 / 255, 32 / 255, 64 / 255]
     alpha_values = [e / 10 for e in eps_values]
@@ -121,3 +121,5 @@ def evaluate_impact_of_epsilon(model, dataloader, device):
     plt.tight_layout()
     plt.savefig("./output/impact_of_epsilon.png")
     print("Plot saved to ./output/impact_of_epsilon.png")
+
+    return eps_values, robust_accuracies

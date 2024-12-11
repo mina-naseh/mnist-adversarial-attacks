@@ -101,3 +101,27 @@ def plot_adversarial_examples(
     plt.tight_layout()
     plt.savefig("./output/adversarial_examples_per_class.png")
     print("Plot saved to ./output/adversarial_examples_per_class.png")
+
+
+def plot_robust_accuracies(eps_values, accuracies_dict, title, save_path):
+    """
+    Plot robust accuracies for one or more models.
+
+    Parameters:
+    - eps_values (list): List of epsilon values.
+    - accuracies_dict (dict): Dictionary where keys are model names and values are lists of accuracies.
+    - title (str): Title of the plot.
+    - save_path (str): Path to save the plot.
+    """
+    plt.figure(figsize=(8, 6))
+    for model_name, accuracies in accuracies_dict.items():
+        plt.plot(eps_values, accuracies, marker="o", label=model_name)
+    plt.xlabel("Epsilon (Maximum Perturbation)")
+    plt.ylabel("Robust Accuracy (%)")
+    plt.title(title)
+    plt.grid(True)
+    plt.xticks(eps_values, [f"{e:.4f}" for e in eps_values])
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(save_path)
+    print(f"Plot saved to {save_path}")
